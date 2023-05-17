@@ -7,6 +7,24 @@ from telebot import types
 from Gamers import Gamer
 from Game import Game
 
+NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP = 0
+players = list([])
+game = Game()
+all_all_shtick_draw_tg = {1: "🁣", 2: "🀲", 3: "🀳", 4: "🀴", 5: "🀵", 6: "🀶", 7: "🀷",
+                   8: "🁫", 9: "🀺", 10: "🀻", 11: "🀼", 12: "🀽", 13: "🀾",
+                   14: "🁳", 15: "🁂", 16: "🁃", 17: "🁄", 18: "🁅",
+                   19: "🁻", 20: "🁊", 21: "🁋", 22: "🁌",
+                   23: "🂃", 24: "🁒", 25: "🁓",
+                   26: "🂋", 27: "🁚",
+                   28: "🂓",
+                   29: "🁣", 30: "🀸", 31: "🀿", 32: "🁆", 33: "🁍", 34: "🁔", 35: "🁛",
+                   36: "🁫", 37: "🁀", 38: "🁇", 39: "🁎", 40: "🁕", 41: "🁜",
+                   42: "🁳", 43: "🁈", 44: "🁏", 45: "🁖", 46: "🁝",
+                   47: "🁻", 48: "🁐", 49: "🁗", 50: "🁞",
+                   51: "🂃", 52: "🁘", 53: "🁟",
+                   54: "🂋", 55: "🁠|",
+                   56: "🂓"}
+
 all_shtick_draw = {1: "|__|__|", 2: "|__|•|", 3: "|__|.°|", 4: "|__|.•°|", 5: "|__|::|", 6: "|__|:•:|",
                    7: "|__|:::|",
                    8: "|•|•|", 9: "|•|.°|", 10: "|•|.•°|", 11: "|•|::|", 12: "|•|:•:|", 13: "|•|:::|",
@@ -26,20 +44,68 @@ all_shtick_draw = {1: "|__|__|", 2: "|__|•|", 3: "|__|.°|", 4: "|__|.•°|",
 token = "5921260531:AAH7rsua62QwrqwK4XJcMNeL8D9tIUjr6BM"
 bot = telebot.TeleBot(token)
 
+
 # Функция возврата фишек для дальнейшей отправки в кнопки
 def send_shticks_player(distribution):
+    """Раздаем каждому фишки"""
     players[0].shticks = sorted(distribution[: 7])
     players[1].shticks = sorted(distribution[7: 14])
     players[2].shticks = sorted(distribution[14: 21])
     players[3].shticks = sorted(distribution[21: 28])
 
+
+def get_params(players, count, pos, count_round, board):
+    """Возвращаем каждому его параметры"""
+    lst = []
+    for i in range(len(players)):
+        if count == i:
+            dct = {'pos': pos,
+                   'name': players[count].name,
+                   'count_of_round': count_round,
+                   'board': board,
+                   'shticks': players[count].shticks}
+            lst.append(dct)
+        else:
+            dct = {'pos': list([[], None, None]),
+                   'name': players[count].name,
+                   'count_of_round': count_round,
+                   'board': board,
+                   'shticks': players[i].shticks}
+            lst.append(dct)
+    return lst
+
+
+def get_button(player, position):
+    buttons = list([])
+    """Если ничего поставить нельзя, то оправляем просто фишки, которые имеются у игрока"""
+    if position == [[], None, None]:
+        for shtick in player.shticks:
+            buttons.append(all_shtick_draw[shtick])
+        return buttons
+
+    count_in_position = []
+    """Иначе будем смотреть что и куда можно поставить"""
+    for elem in position:
+        if elem[0][0] not in count_in_position:
+            count_in_position.append(player.shticks[elem[0][0]])
+        buttons.append(all_shtick_draw[player.shticks[elem[0][0]]] + ' ' + elem[0][1])
+
+    """Добавляем остальные клавиши"""
+    for shtick in player.shticks:
+        if shtick not in count_in_position:
+            buttons.append(all_shtick_draw[shtick])
+    return buttons
+
+
 # Handle '/start' and '/help'
 @bot.message_handler(commands=['help', 'start'])
 def send_welcome(message):
+
     msg = bot.reply_to(message, """\
         Добро пожаловать в игру. Введи свое имя
         """)
     bot.register_next_step_handler(msg, process_name_step)
+
 
 # Записываем свое имя и добавляем пользователя в словарь с ключом по id
 def process_name_step(message):
@@ -51,103 +117,114 @@ def process_name_step(message):
     except Exception as e:
         bot.reply_to(message, 'oooops')
 
+
+def get_board():
+    message = ''
+    if len(game.board) == 0:
+        return 'Поставьте первую фишку'
+    for shtick in game.board:
+        message += all_all_shtick_draw_tg[shtick]
+    return message
+
+def next_step():
+    print(f"ходит игрок "
+          f"{players[NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP].name, players[NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP].shticks}")
+    pos_var = game.put_a_chip(NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP, players)
+    params = get_params(players, NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP, pos_var, game.count_round, game.board)
+    for i in range(0, 4):
+        try:
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            for elem in get_button(players[i - 1], params[i - 1]['pos']):
+                item1 = types.KeyboardButton(elem)
+                markup.add(item1)
+            bot.send_message(players[i - 1].id, get_board(), reply_markup=markup)
+        except Exception as e:
+            print('Хуета')
+        print('Прошли try')
+
+
+
+def start_round():
+    list_shticks = game.chip_distribution()
+    send_shticks_player(list_shticks)
+    print('Раздача окончена')
+    order = game.order(players)
+    print(order)
+    print(f"Имя первого чела {players[order[0] - 1].name} "
+          f"и его фишки {players[order[0] - 1].shticks}")
+    # Раунд начался.
+    # Пишем номер раунда.
+    game.end_round = True
+    global NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP
+    NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP = order[0] - 1
+    number_of_passes = 0
+    game.board = list([])
+    print(f"Начало {game.count_round}-го раунда")
+    print('Количество пропусков', number_of_passes)
+    print(f"ходит игрок {players[order[0] - 1].name, players[order[0] - 1].shticks}")
+    pos_var = game.put_a_chip(order[0] - 1, players)
+    params = get_params(players, order[0] - 1, pos_var, game.count_round, game.board)
+    for i in order:
+        try:
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            for elem in get_button(players[i - 1], params[i - 1]['pos']):
+                item1 = types.KeyboardButton(elem)
+                markup.add(item1)
+            bot.send_message(players[i - 1].id, 'kek', reply_markup=markup)
+        except Exception as e:
+            print('Хуета')
+        print('Прошли try')
+
+
 # Когда подключилось 2 игрока, то можно начинать игру
 @bot.message_handler(commands=['start_game'])
 def start_game(message):
     if len(players) == 4:
         print('Игра началась')
-        list_shticks = game.chip_distribution()
-        send_shticks_player(list_shticks)
-        print('Раздача окончена')
-        order = game.order(players)
-        print(order)
-        print(f"Имя первого чела {players[order[0] - 1].name} "
-              f"и его фишки {players[order[0] - 1].shticks}")
-        # Раунд начался.
-        # Пишем номер раунда.
-        game.end_round = True
-        number_of_passes = 0
-        game.board = list([])
-        print(f"Начало {game.count_round}-го раунда")
-        for i in order:
-            print(players[i - 1].shticks)
-            try:
-                markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-                if len(players[i - 1].shticks) == 7:
-                    item1 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[0]])
-                    item2 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[1]])
-                    item3 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[2]])
-                    item4 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[3]])
-                    item5 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[4]])
-                    item6 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[5]])
-                    item7 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[6]])
-                    markup.add(item1, item2, item3, item4, item5, item6, item7)
-                elif len(players[i - 1].shticks) == 6:
-                    item1 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[0]])
-                    item2 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[1]])
-                    item3 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[2]])
-                    item4 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[3]])
-                    item5 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[4]])
-                    item6 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[5]])
-                    markup.add(item1, item2, item3, item4, item5, item6)
-                elif len(players[i - 1].shticks) == 5:
-                    item1 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[0]])
-                    item2 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[1]])
-                    item3 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[2]])
-                    item4 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[3]])
-                    item5 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[4]])
-                    markup.add(item1, item2, item3, item4, item5)
-                elif len(players[i - 1].shticks) == 4:
-                    item1 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[0]])
-                    item2 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[1]])
-                    item3 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[2]])
-                    item4 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[3]])
-                    markup.add(item1, item2, item3, item4)
-                elif len(players[i - 1].shticks) == 3:
-                    item1 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[0]])
-                    item2 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[1]])
-                    item3 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[2]])
-                    markup.add(item1, item2, item3)
-                elif len(players[i - 1].shticks) == 2:
-                    item1 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[0]])
-                    item2 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[1]])
-                    markup.add(item1, item2)
-                elif len(players[i - 1].shticks) == 1:
-                    item1 = types.KeyboardButton(all_shtick_draw[players[i - 1].shticks[0]])
-                    markup.add(item1)
-                bot.send_message(players[i - 1].id,  reply_markup=markup)
-                # msg = bot.reply_to(message, 'What is your gender', reply_markup=markup)
-                # bot.register_next_step_handler(msg, process_sex_step)
-            except Exception as e:
-                bot.reply_to(message, 'oooops')
-            print('Прошли try')
+        start_round()
+
+
+def find_number(shtick):
+    number = shtick[: shtick.index(' ')]
+    print(number)
+    _side = shtick[shtick.index(' ') + 1:]
+    print(_side)
+    for key in all_shtick_draw:
+        if all_shtick_draw[key] == number:
+            return key, _side
+
 
 @bot.message_handler(content_types=["text"])
-def test_callback(message): # <- passes a CallbackQuery type object to your function
-    print('Мы зашли в какую-то функцию')
-    print(message.text)
+def test_callback(message):
+    print(message)
+    if len(message.text) > 9:
+        print(message.text)
+        number_of_shtick, side = find_number(message.text)
+        if side == 'left':
+            game.board.insert(0, number_of_shtick)
+            for player in players:
+                if player.id == message.from_user.id:
+                    print(player.shticks)
+                    player.shticks.remove(number_of_shtick)
+        elif side == 'right':
+            game.board.append(number_of_shtick)
+            for player in players:
+                if player.id == message.from_user.id:
+                    print(player.shticks)
+                    player.shticks.remove(number_of_shtick)
+    global NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP
+    if NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP != 3:
+        NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP += 1
+    else:
+        NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP = 0
+    next_step()
 
-# @bot.message_handler(commands=['kek'])
-# def add_gamer(message):
-#     # if len(user_dict) == 2:
-#     #     print('Игра началась')
-#     # else:
-#     #     print('pisun')
-#     bot.register_next_step_handler(message, process_change_shticks)
+    # if game.dont_end_round(number_of_passes,
+    #                             number - 1, self.players) \
+    #         and len(self.game.board) >= 12:
+    #     self.game.end_round = False
+    #     print('Раунд должен быть закончен')
 
-
-# def process_sex_step(message):
-#     try:
-#         chat_id = message.chat.id
-#         number_shticks = message.text
-#         user = user_dict[chat_id]
-#         if (sex == u'Male') or (sex == u'Female'):
-#             user.sex = sex
-#         else:
-#             raise Exception("Unknown sex")
-#         bot.send_message(chat_id, 'Nice to meet you ' + user.name + '\n Age:' + str(user.age) + '\n Sex:' + user.sex)
-#     except Exception as e:
-#         bot.reply_to(message, 'oooops')
 
 def start_game():
     if len(players) == 2:
@@ -160,8 +237,6 @@ if __name__ == "__main__":
     # Enable saving next step handlers to file "./.handlers-saves/step.save".
     # Delay=2 means that after any change in next step handlers (e.g. calling register_next_step_handler())
     # saving will hapen after delay 2 seconds.
-    players = list([])
-    game = Game()
     bot.enable_save_next_step_handlers(delay=2)
     # Load next_step_handlers from save file (default "./.handlers-saves/step.save")
     # WARNING It will work only if enable_save_next_step_handlers was called!

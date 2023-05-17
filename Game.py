@@ -237,7 +237,7 @@ class Game:
 
     def put_a_chip(self, number_of_player, players):
         """ Выбор фишки, которую можно поставить"""
-        if self.count_round == 1 and 8 not in self.board:
+        if self.count_round == 1 and 8 not in self.board and 8 in players[number_of_player].shticks:
             n = players[number_of_player].shticks.index(8)
             return [[[n, 'right'], True, False], [[n, 'left'], True, False]]
         else:
