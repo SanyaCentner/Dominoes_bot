@@ -10,6 +10,7 @@ from Game import Game
 NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP = 0
 players = list([])
 game = Game()
+board_for_draw = list([])
 all_all_shtick_draw_tg = {1: "🁣", 2: "🀲", 3: "🀳", 4: "🀴", 5: "🀵", 6: "🀶", 7: "🀷",
                    8: "🁫", 9: "🀺", 10: "🀻", 11: "🀼", 12: "🀽", 13: "🀾",
                    14: "🁳", 15: "🁂", 16: "🁃", 17: "🁄", 18: "🁅",
@@ -43,7 +44,7 @@ all_shtick_draw = {1: "|__|__|", 2: "|__|•|", 3: "|__|.°|", 4: "|__|.•°|",
                    56: "|:::|:::|"}
 token = "5921260531:AAH7rsua62QwrqwK4XJcMNeL8D9tIUjr6BM"
 bot = telebot.TeleBot(token)
-
+NUMBER_OF_PASSES = 0
 
 # Функция возврата фишек для дальнейшей отправки в кнопки
 def send_shticks_player(distribution):
@@ -97,6 +98,22 @@ def get_button(player, position):
     return buttons
 
 
+def examination_shtick_on_draw(side, number):
+    if len(board_for_draw) == 0:
+        return number
+    if side == 'left':
+        first_shticks = board_for_draw[0]
+        if game.all_shtick[number][2] == game.all_shtick[first_shticks][0]:
+            return number
+        else:
+            return number + 28
+    elif side == 'right':
+        first_shticks = board_for_draw[-1]
+        if game.all_shtick[number][0] == game.all_shtick[first_shticks][2]:
+            return number
+        else:
+            return number + 28
+
 # Handle '/start' and '/help'
 @bot.message_handler(commands=['help', 'start'])
 def send_welcome(message):
@@ -109,6 +126,7 @@ def send_welcome(message):
 
 # Записываем свое имя и добавляем пользователя в словарь с ключом по id
 def process_name_step(message):
+    print(players)
     try:
         chat_id = message.chat.id
         name = message.text
@@ -120,6 +138,7 @@ def process_name_step(message):
 
 def get_board():
     message = ''
+    print(game.board)
     if len(game.board) == 0:
         return 'Поставьте первую фишку'
     for shtick in game.board:
@@ -130,6 +149,7 @@ def next_step():
     print(f"ходит игрок "
           f"{players[NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP].name, players[NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP].shticks}")
     pos_var = game.put_a_chip(NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP, players)
+    print(pos_var)
     params = get_params(players, NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP, pos_var, game.count_round, game.board)
     for i in range(0, 4):
         try:
@@ -139,8 +159,11 @@ def next_step():
                 markup.add(item1)
             bot.send_message(players[i - 1].id, get_board(), reply_markup=markup)
         except Exception as e:
-            print('Хуета')
-        print('Прошли try')
+            print('Не прошло')
+
+    # if pos_var[NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP] == [[], None, None]:
+    #     next_step()
+
 
 
 
@@ -170,7 +193,7 @@ def start_round():
             for elem in get_button(players[i - 1], params[i - 1]['pos']):
                 item1 = types.KeyboardButton(elem)
                 markup.add(item1)
-            bot.send_message(players[i - 1].id, 'kek', reply_markup=markup)
+            bot.send_message(players[i - 1].id, 'Начало раунда ставьте фишку', reply_markup=markup)
         except Exception as e:
             print('Хуета')
         print('Прошли try')
@@ -197,33 +220,47 @@ def find_number(shtick):
 @bot.message_handler(content_types=["text"])
 def test_callback(message):
     print(message)
+    number = 0
+    global NUMBER_OF_PASSES
     if len(message.text) > 9:
+        NUMBER_OF_PASSES = 0
         print(message.text)
         number_of_shtick, side = find_number(message.text)
         if side == 'left':
-            game.board.insert(0, number_of_shtick)
+            game.board.insert(0, examination_shtick_on_draw('left', number_of_shtick))
             for player in players:
                 if player.id == message.from_user.id:
+                    number = players.index(player)
                     print(player.shticks)
                     player.shticks.remove(number_of_shtick)
         elif side == 'right':
-            game.board.append(number_of_shtick)
+            game.board.append(examination_shtick_on_draw('right', number_of_shtick))
             for player in players:
                 if player.id == message.from_user.id:
+                    number = players.index(player)
                     print(player.shticks)
                     player.shticks.remove(number_of_shtick)
+    else:
+        NUMBER_OF_PASSES += 1
     global NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP
     if NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP != 3:
         NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP += 1
     else:
         NUMBER_OF_HUMAN_WHO_PUTS_A_CHIP = 0
+
+    if game.dont_end_round(NUMBER_OF_PASSES,
+                                number, players) \
+            and len(game.board) >= 12:
+        game.end_round = False
+        print('Раунд должен быть закончен')
+        for player in players:
+            bot.send_message(player.id, f"Счет между командой {players[0].name, players[2].name} и "
+                                        f"{players[1].name, players[3].name}: {game.point_team_one} :"
+                                        f"{game.point_team_two}")
+        start_round()
     next_step()
 
-    # if game.dont_end_round(number_of_passes,
-    #                             number - 1, self.players) \
-    #         and len(self.game.board) >= 12:
-    #     self.game.end_round = False
-    #     print('Раунд должен быть закончен')
+
 
 
 def start_game():
