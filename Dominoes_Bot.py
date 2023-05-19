@@ -2,6 +2,7 @@
 """
 This Example will show you how to use register_next_step handler.
 """
+import os
 import telebot
 from telebot import types
 from Gamers import Gamer
@@ -42,7 +43,11 @@ all_shtick_draw = {1: "|__|__|", 2: "|__|•|", 3: "|__|.°|", 4: "|__|.•°|",
                    51: "|::|::|", 52: "|:•:|::|", 53: "|:::|::|",
                    54: "|:•:|:•:|", 55: "|:::|:•:|",
                    56: "|:::|:::|"}
-token = "5921260531:AAH7rsua62QwrqwK4XJcMNeL8D9tIUjr6BM"
+
+
+f = open('/Users/aleksandr/Documents/token.txt')
+token = f.read()
+token = token[1: -2]
 bot = telebot.TeleBot(token)
 NUMBER_OF_PASSES = 0
 
