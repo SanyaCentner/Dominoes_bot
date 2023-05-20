@@ -15,6 +15,7 @@ class Game:
         self.point_team_two = 0
         self.end_round = True
         self.end_game = True
+        self.memorize_point = 0
         self.all_shtick = {1: "0-0", 2: "0-1", 3: "0-2", 4: "0-3", 5: "0-4", 6: "0-5", 7: "0-6",
                            8: "1-1", 9: "1-2", 10: "1-3", 11: "1-4", 12: "1-5", 13: "1-6",
                            14: "2-2", 15: "2-3", 16: "2-4", 17: "2-5", 18: "2-6",
@@ -48,23 +49,21 @@ class Game:
 
     def match_list(self, count):
         """ Функция выбора порядка ходов """
-        if count == 1:
-            return list([1, 2, 3, 4])
+        if count == 0:
+            return list([0, 1, 2, 3])
+        elif count == 1:
+            return list([1, 2, 3, 0])
         elif count == 2:
-            return list([2, 3, 4, 1])
+            return list([2, 3, 0, 1])
         elif count == 3:
-            return list([3, 4, 1, 2])
-        elif count == 4:
-            return list([4, 1, 2, 3])
+            return list([3, 0, 1, 2])
 
     def find_first_move(self, players):
         """ Выбор игрока, у которого 1-1 """
-        tmp = 1
-        for player in players:
-            for elem in player.shticks:
+        for i in range(len(players)):
+            for elem in players[i].shticks:
                 if elem == 8:
-                    return self.match_list(tmp)
-            tmp += 1
+                    return self.match_list(i)
 
     def order(self, players):
         """Возвращаем порядок"""
@@ -120,15 +119,19 @@ class Game:
         """ Считаем количество очков"""
         count = 0
         for shtick in player_first.shticks:
+            if shtick in (0, 28) and len(player_first.shticks) == 1:
+                count += 10
             count += int(self.all_shtick[shtick][0]) + int(self.all_shtick[shtick][2])
             print(f"Какая фишка {self.all_shtick[shtick]}, Сумма очков {count}")
         for shtick in player_second.shticks:
+            if shtick in (0, 28) and len(player_first.shticks) == 1:
+                count += 10
             count += int(self.all_shtick[shtick][0]) + int(self.all_shtick[shtick][2])
             print(f"Какая фишка {self.all_shtick[shtick]}, Сумма очков {count}")
         return count
 
     def scoring_eligibility_check(self, summ_one, summ_two):
-        if self.point_team_one == 0 and (summ_one > 12 or summ_two > 12):
+        if (self.point_team_one == 0 or self.point_team_two == 0) and (summ_one > 12 or summ_two > 12):
             return True
         else:
             return False
@@ -142,16 +145,21 @@ class Game:
         team_two = self.summ_points(players[1], players[3])
         if passes == 4:
             print('Проверяем рыбу')
-            self.number_first_move = number_of_player + 1
+            self.number_first_move = number_of_player
             self.count_round += 1
             if self.scoring_eligibility_check(team_one, team_two):
                 if team_one == team_two:
-                    self.point_team_one += team_one
-                    self.point_team_two += team_two
+                    self.memorize_point += team_one
                 elif team_one > team_two:
                     self.point_team_one += team_one
+                    if self.memorize_point != 0:
+                        self.point_team_one += 2 * self.memorize_point
+                        self.memorize_point == 0
                 elif team_one < team_two:
                     self.point_team_two += team_two
+                    if self.memorize_point != 0:
+                        self.point_team_two += 2 * self.memorize_point
+                        self.memorize_point == 0
             return True
 
         ## Проверяем конец раунда в целом
@@ -159,16 +167,26 @@ class Game:
             print('ну что же, мы внутри')
             if len(players[count].shticks) == 0:
                 print(f"номер игрока {count}, сам игрок {players[count].name}")
-                self.number_first_move = count + 1
+                if count == 0:
+                    self.number_first_move = 3
+                elif count == 3:
+                    self.number_first_move = 2
+                else:
+                    self.number_first_move = count - 1
                 self.count_round += 1
                 print(f"номер следущего раунда: {self.count_round}")
                 if self.scoring_eligibility_check(team_one, team_two):
                     if count == 0 or count == 2:
                         self.point_team_two += team_two
+                        if self.memorize_point != 0:
+                            self.point_team_two += 2 * self.memorize_point
+                            self.memorize_point == 0
                     elif count == 1 or count == 3:
                         self.point_team_one += team_one
+                        if self.memorize_point != 0:
+                            self.point_team_one += 2 * self.memorize_point
+                            self.memorize_point == 0
                 return True
-
         return False
 
     def possible_chips_that_can_be_placed(self, player):
